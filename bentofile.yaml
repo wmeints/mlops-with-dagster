@@ -3,7 +3,7 @@ labels:
   stage: dev
   type: random_forest
 include:
-  - "**/*.py"
+  - "review_classification/service.py"
 python:
   packages:
     - scikit-learn

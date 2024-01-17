@@ -12,6 +12,7 @@ pandas = "^2.1.4"
 dagster = "^1.6.0"
 spacy = "^3.7.2"
 mlflow = "^2.9.2"
+bentoml = "^1.1.11"
 
 [tool.poetry.group.dev.dependencies]
 dagster-webserver = "^1.6.0"

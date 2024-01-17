@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import bentoml
 import joblib
 import mlflow
 import pandas as pd
@@ -10,28 +11,22 @@ from sklearn.model_selection import train_test_split
 
 
 @asset
-def text_vectorizer(classification_features: str) -> Output[str]:
+def text_vectorizer(classification_features: str) -> Output[None]:
     df_features = pd.read_parquet(classification_features)
 
     vectorizer = TfidfVectorizer()
     vectorizer.fit(df_features["reviewText"])
 
-    output_path = Path("models/vectorizer.pkl")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    bentoml.sklearn.save_model("text_vectorizer", vectorizer)
 
-    with open(output_path, "wb") as f:
-        joblib.dump(vectorizer, f)
-
-    return Output(str(output_path))
+    return Output(None)
 
 
-@asset
-def random_forest_classifier(classification_features: str, text_vectorizer: str):
+@asset(deps=[text_vectorizer])
+def random_forest_classifier(classification_features: str) -> Output[None]:
+    vectorizer = bentoml.sklearn.load_model("text_vectorizer:latest")
+
     df_features = pd.read_parquet(classification_features)
-
-    with open(text_vectorizer, "rb") as f:
-        vectorizer = joblib.load(f)
-
     df_train, df_test = train_test_split(df_features, test_size=0.2)
 
     X_train = vectorizer.transform(df_train["reviewText"])  # type: ignore
@@ -40,19 +35,13 @@ def random_forest_classifier(classification_features: str, text_vectorizer: str)
     X_test = vectorizer.transform(df_test["reviewText"])  # type: ignore
     y_test = df_test["vote"]  # type: ignore
 
-    with mlflow.start_run():
-        classifier = RandomForestClassifier()
-        classifier.fit(X_train, y_train)
+    classifier = RandomForestClassifier()
+    classifier.fit(X_train, y_train)
 
-        score = classifier.score(X_test, y_test)
+    score = classifier.score(X_test, y_test)
 
-        output_path = Path("models/classifier.pkl")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+    bentoml.sklearn.save_model(
+        "reviews_classifier_rf", classifier, metadata={"accuracy": score}
+    )
 
-        mlflow.sklearn.log_model(classifier, "models")
-        mlflow.log_metric("accuracy", score)  # type: ignore
-
-    with open(output_path, "wb") as f:
-        joblib.dump(classifier, f)
-
-    return Output(str(output_path))
+    return Output(None)

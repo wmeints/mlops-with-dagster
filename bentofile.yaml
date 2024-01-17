@@ -1,0 +1,13 @@
+service: review_classification.service:svc
+labels:
+  stage: dev
+  type: random_forest
+include:
+  - "**/*.py"
+python:
+  packages:
+    - scikit-learn
+    - pandas
+models:
+  - text_vectorizer:latest
+  - reviews_classifier_rf:latest
